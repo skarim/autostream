@@ -155,6 +155,47 @@ OWNTONE_RESTART_STATE = {
     "token": 0,  # increments each time we start a restart
 }
 
+def _diagnose_owntone_connection(base_url: str, exception: Exception) -> str:
+    """Provide detailed diagnostic information for Owntone connection failures.
+    
+    Returns a user-friendly error message with debugging guidance.
+    """
+    error_type = type(exception).__name__
+    error_msg = str(exception)
+    
+    # Build diagnostic message
+    parts = [f"Could not reach Owntone at {base_url}"]
+    
+    # Add specific error details
+    if isinstance(exception, requests.exceptions.ConnectionError):
+        parts.append("Error: Connection refused or host unreachable")
+        parts.append("This usually means Owntone service is not running")
+    elif isinstance(exception, requests.exceptions.Timeout):
+        parts.append("Error: Connection timeout")
+        parts.append("Owntone may be starting up or unresponsive")
+    elif isinstance(exception, requests.exceptions.RequestException):
+        parts.append(f"Error: {error_type} - {error_msg}")
+    else:
+        parts.append(f"Error: {error_msg}")
+    
+    # Check if Owntone service is running
+    try:
+        result = run_cmd(["systemctl", "is-active", "owntone"], timeout=2.0, check=False)
+        if result.returncode != 0:
+            parts.append("Debug: Owntone service is NOT running (systemctl is-active owntone: failed)")
+            parts.append("Fix: Try 'sudo systemctl start owntone' or reboot the device")
+        else:
+            service_state = (result.stdout or "").strip()
+            if service_state == "active":
+                parts.append(f"Debug: Owntone service reports as '{service_state}' but API is not responding")
+                parts.append("Fix: Try restarting Owntone service or check /var/log/syslog for errors")
+            else:
+                parts.append(f"Debug: Owntone service state: {service_state}")
+    except Exception as svc_err:
+        parts.append(f"Debug: Could not check service status ({svc_err})")
+    
+    return " | ".join(parts)
+
 def _owntone_ready_quick(base_url: str, timeout_s: float = 0.6) -> tuple[bool, str]:
     """Fast readiness probe used by /api/owntone/ready."""
     try:
@@ -164,7 +205,7 @@ def _owntone_ready_quick(base_url: str, timeout_s: float = 0.6) -> tuple[bool, s
             return True, "Owntone is responding"
         return False, f"Owntone returned HTTP {r.status_code}"
     except Exception as e:
-        return False, str(e)
+        return False, _diagnose_owntone_connection(base_url, e)
 
 def _restart_owntone_worker(state, token: int) -> None:
     """Background restart + wait loop. Updates OWNTONE_RESTART_STATE when done."""
@@ -670,7 +711,7 @@ def send_airplay_page(handler, state: WebUIState, auth, error: Optional[str] = N
         else:
             error = error or f"Owntone returned HTTP {resp.status_code}"
     except Exception as e:
-        error = error or f"Could not reach Owntone at {owntone_base_url}"
+        error = error or _diagnose_owntone_connection(owntone_base_url, e)
 
     # Sort: default first
     if default_output_name:
@@ -1205,11 +1246,19 @@ def send_owntone_setup_page(handler, state: WebUIState, auth, saved_ok: bool = F
 
     hidden_set = {str(n).strip().casefold() for n in (parsed.webui.hidden_outputs or ()) if str(n).strip()}
     outputs = []
+    owntone_error = None
     try:
         resp = requests.get(parsed.owntone.base_url.rstrip("/") + "/api/outputs", timeout=3)
         if resp.status_code == 200:
             outputs = resp.json().get("outputs", [])
-    except Exception: pass
+        else:
+            owntone_error = f"Owntone returned HTTP {resp.status_code}"
+    except Exception as e:
+        owntone_error = _diagnose_owntone_connection(parsed.owntone.base_url, e)
+    
+    # If we couldn't get outputs and no other error is set, use the Owntone error
+    if not outputs and not error and owntone_error:
+        error = owntone_error
 
     # Unified list of names: prefer Owntone's case, append others from hidden list
     output_names = {o.get("name", "").strip() for o in outputs if o.get("name")}
