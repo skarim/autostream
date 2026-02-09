@@ -540,6 +540,7 @@ def owntone_config_ok(conf_path: Path | str = OWNTONE_CONF_PATH) -> int:
     Ensure owntone.conf has:
       1) library.directories = { "/tmp" }
       2) pipe_autostart enabled (pipe_autostart = true) inside library block
+      3) trusted_networks configured to allow local API access
 
     Return codes:
       - OWNTONE_OK (=0) if already correct
@@ -574,10 +575,21 @@ def owntone_config_ok(conf_path: Path | str = OWNTONE_CONF_PATH) -> int:
         val = _parse_bool(m.group("v"))
         return val is True
 
+    def _trusted_networks_ok(t: str) -> bool:
+        # Check if trusted_networks is configured (anywhere in config, not just library block)
+        # Match either quoted string or unquoted values
+        m = re.search(r"(?m)^\s*trusted_networks\s*=\s*(.+)$", t)
+        if not m:
+            return False
+        # As long as there's a value (localhost or any network), it's OK
+        value = m.group(1).strip()
+        return bool(value) and not value.startswith("#")
+
     dirs_ok = _dirs_ok(block)
     pipe_ok = _pipe_ok(block)
+    trusted_ok = _trusted_networks_ok(text)
 
-    if dirs_ok and pipe_ok:
+    if dirs_ok and pipe_ok and trusted_ok:
         return OWNTONE_OK
 
     # ---------------------------------------------------------------------
@@ -629,6 +641,22 @@ def owntone_config_ok(conf_path: Path | str = OWNTONE_CONF_PATH) -> int:
 
     new_text = text[: span[0]] + block + text[span[1] :]
 
+    # 3) Ensure trusted_networks is configured
+    # Add at the end of the file (in general section) if not present
+    if not _trusted_networks_ok(new_text):
+        # Look for existing commented trusted_networks line to uncomment
+        trusted_commented = re.search(r"(?m)^(?P<indent>\s*)#\s*trusted_networks\s*=.*$", new_text)
+        if trusted_commented:
+            # Uncomment and set to localhost
+            indent = trusted_commented.group("indent")
+            new_line = f"{indent}trusted_networks = 127.0.0.1, ::1"
+            new_text = new_text[:trusted_commented.start()] + new_line + new_text[trusted_commented.end():]
+        else:
+            # Add at end of file
+            if not new_text.endswith("\n"):
+                new_text += "\n"
+            new_text += "\n# Allow local connections without password (autostream)\ntrusted_networks = 127.0.0.1, ::1\n"
+
     try:
         _atomic_write_text(path, new_text)
     except Exception:
@@ -645,7 +673,7 @@ def owntone_config_ok(conf_path: Path | str = OWNTONE_CONF_PATH) -> int:
         return OWNTONE_NOT_OK
     block2 = updated[span2[0] : span2[1]]
 
-    if _dirs_ok(block2) and _pipe_ok(block2):
+    if _dirs_ok(block2) and _pipe_ok(block2) and _trusted_networks_ok(updated):
         return OWNTONE_RESTART_REQUIRED
 
     return OWNTONE_NOT_OK

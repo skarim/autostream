@@ -180,6 +180,78 @@ Run through this in order:
 
 ---
 
+### "Web interface request denied: No password set in the config"
+
+If you see repeated errors in the Owntone logs like:
+```
+httpd: Web interface request to '/api/outputs' denied: No password set in the config
+```
+
+This means Owntone is blocking API access because it's not configured to allow connections from autostream.
+
+**What causes this:**
+
+Owntone requires EITHER an admin password OR trusted networks to be configured for security. The default configuration has neither, which prevents autostream from controlling outputs and speakers.
+
+**Quick fix (automatic):**
+
+The latest version of autostream automatically fixes this on startup. Simply reboot the device:
+
+```bash
+sudo reboot
+```
+
+After reboot, autostream's health check will detect the missing configuration and automatically add:
+```
+trusted_networks = 127.0.0.1, ::1
+```
+
+This allows local (localhost) connections without a password, which is safe since autostream runs on the same machine.
+
+**Manual fix (if automatic fix doesn't work):**
+
+1. Edit the Owntone configuration file:
+   ```bash
+   sudo nano /opt/autostream/owntone/owntone.conf
+   ```
+
+2. Add this line anywhere in the file (or uncomment if it exists):
+   ```
+   trusted_networks = 127.0.0.1, ::1
+   ```
+
+3. Save and exit (Ctrl+X, then Y, then Enter)
+
+4. Restart Owntone:
+   ```bash
+   sudo systemctl restart owntone
+   ```
+
+5. Check if it's working:
+   ```bash
+   journalctl -u owntone --no-pager -n 50 | grep -i "denied\|password"
+   ```
+
+   You should no longer see "denied" messages.
+
+**Alternative: Set an admin password (not recommended for autostream):**
+
+Instead of trusted_networks, you could set an admin password in owntone.conf:
+```
+admin_password = your_password_here
+```
+
+However, this would require modifying autostream's code to authenticate with the password, so using `trusted_networks` is the simpler solution.
+
+**Related issues this fixes:**
+
+- Cannot control speaker volume
+- Speakers don't appear in autostream UI
+- AirPlay streaming fails with "500 Internal Server Error"
+- autostream web interface shows "Could not reach Owntone" errors
+
+---
+
 ### "Could not reach Owntone" Error
 
 If you see an error message like "Could not reach Owntone at http://localhost:3689", this means **autostream** cannot communicate with the Owntone service that handles AirPlay streaming.
