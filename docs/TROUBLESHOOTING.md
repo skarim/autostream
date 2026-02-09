@@ -180,6 +180,75 @@ Run through this in order:
 
 ---
 
+### "Could not reach Owntone" Error
+
+If you see an error message like "Could not reach Owntone at http://localhost:3689", this means **autostream** cannot communicate with the Owntone service that handles AirPlay streaming.
+
+**Common causes:**
+
+1. **Owntone service not running**
+   * The Owntone systemd service may have crashed or failed to start
+2. **System just rebooted**
+   * Owntone may still be starting up (can take 10-30 seconds)
+3. **Configuration issue**
+   * Owntone configuration file may have syntax errors
+
+**Quick fixes to try:**
+
+1. **Wait 30 seconds** - Owntone may still be starting up after a reboot
+2. **Reboot the device** - This will restart all services cleanly
+3. **Check service status via SSH** (see below)
+
+**If you have SSH access:**
+
+Check if Owntone is running:
+
+```bash
+systemctl status owntone
+```
+
+If it shows as "inactive" or "failed", try restarting it:
+
+```bash
+sudo systemctl restart owntone
+```
+
+Check Owntone logs for errors:
+
+```bash
+journalctl -u owntone --no-pager -n 100
+```
+
+Common issues in logs:
+* **Configuration errors** - Look for "config" or "parse" errors
+* **Permission issues** - Look for "permission denied" errors
+* **Port conflicts** - Look for "bind" or "address already in use" errors
+
+Verify Owntone is listening on port 3689:
+
+```bash
+sudo netstat -tlnp | grep 3689
+```
+
+You should see output like:
+```
+tcp        0      0 0.0.0.0:3689            0.0.0.0:*               LISTEN      12345/owntone
+```
+
+If Owntone won't start, check the configuration file:
+
+```bash
+sudo nano /opt/autostream/owntone/owntone.conf
+```
+
+Look for syntax errors (missing braces, quotes, etc.)
+
+**Still stuck?**
+
+Download logs from the **autostream** UI (Logs page) and check for additional error messages. The full error message from **autostream** now includes diagnostic information to help identify the specific issue.
+
+---
+
 ## Advanced
 
 ### Downloading logs
