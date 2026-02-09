@@ -182,13 +182,13 @@ def _diagnose_owntone_connection(base_url: str, exception: Exception) -> str:
     try:
         result = run_cmd(["systemctl", "is-active", "owntone"], timeout=2.0, check=False)
         if result.returncode != 0:
-            parts.append("Debug: Owntone service is NOT running (systemctl is-active owntone: failed)")
+            parts.append("Debug: Owntone service is NOT running")
             parts.append("Fix: Try 'sudo systemctl start owntone' or reboot the device")
         else:
             service_state = (result.stdout or "").strip()
             if service_state == "active":
                 parts.append(f"Debug: Owntone service reports as '{service_state}' but API is not responding")
-                parts.append("Fix: Try restarting Owntone service or check /var/log/syslog for errors")
+                parts.append("Fix: Try restarting Owntone service or check logs with 'journalctl -u owntone'")
             else:
                 parts.append(f"Debug: Owntone service state: {service_state}")
     except Exception as svc_err:
