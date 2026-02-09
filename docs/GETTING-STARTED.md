@@ -23,6 +23,7 @@ After installation, **autostream** only requires a short, one-time setup using a
 On the first setup page, all available **AirPlay / AirPlay 2** speakers on your network should appear.
 
 * Deselect any speakers you do not want to be available in this autostream appliance.
+* **Use uncompressed audio**: When enabled (recommended), sends CD-quality uncompressed audio to AirPlay speakers for the best sound quality. This is ideal for vinyl records and CDs. Uses more network bandwidth but less CPU on the Raspberry Pi. Disable only if you experience network connectivity issues.
 * Tap **Continue** when finished.
 
 If your speakers do not appear:
