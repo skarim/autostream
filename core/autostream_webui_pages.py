@@ -1338,6 +1338,7 @@ def send_owntone_setup_page(handler, state: WebUIState, auth, saved_ok: bool = F
         {speakers_html}
         <fieldset><legend>Audio</legend>
           <label style="display:flex;align-items:center;gap:0.5rem;"><input type="checkbox" name="uncompressed_alac" {'checked' if uncompressed else ''}> Use uncompressed audio</label>
+          <p style="margin:0.5rem 0 0 0;font-size:0.85rem;color:#666;line-height:1.4;">Sends CD-quality uncompressed audio to AirPlay speakers. Recommended for best quality with vinyl and CDs. Uses more network bandwidth but less CPU. Disable if you experience network issues.</p>
         </fieldset>
         <p class="actions"><button type="submit">{submit_label}</button></p>
       </form></div></body></html>
