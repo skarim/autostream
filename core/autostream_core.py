@@ -123,13 +123,29 @@ def start_ffmpeg(
 
     # We do:
     #   (this script) -> raw PCM (stdin) -> ffmpeg -> FIFO
-    # Always use ffmpeg to asyncronously resample, to mask clock drift in the source
+    #
+    # When input and output rates match, avoid resampling entirely for best
+    # audio quality — just pass the raw PCM straight through.
+    #
+    # When rates differ, use a simple aresample without async/first_pts
+    # options.  Raw PCM from a pipe has no real timestamps, so
+    # async=1:first_pts=0 causes ffmpeg to insert/drop samples to "correct"
+    # non-existent timestamp discontinuities, producing scratchy audio
+    # artifacts — especially on low-power devices like the Pi Zero 2 W.
+    #
+    # Low-latency flags (-fflags nobuffer, -flush_packets 1) minimise
+    # buffering so audio reaches the FIFO (and Owntone) as quickly as
+    # possible.
+    needs_resample = (ffmpeg_in_rate != ffmpeg_out_rate)
+
     ffmpeg_cmd = [
         "ffmpeg",
         "-hide_banner",
         "-loglevel",
         "error",
         "-y",
+        "-fflags",
+        "nobuffer",
         "-f",
         "s16le",
         "-ac",
@@ -138,8 +154,14 @@ def start_ffmpeg(
         str(ffmpeg_in_rate),
         "-i",
         "pipe:0",
-        "-af",
-        "aresample=async=1:first_pts=0",
+    ]
+
+    if needs_resample:
+        ffmpeg_cmd += ["-af", f"aresample={ffmpeg_out_rate}"]
+
+    ffmpeg_cmd += [
+        "-flush_packets",
+        "1",
         "-f",
         "s16le",
         "-ac",
