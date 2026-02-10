@@ -19,13 +19,13 @@ silence_seconds = 30           ; length of time of continuous silence before sto
 
 [audio1]
 capture_device = Cubilux SPDIF ; sounddevice input device name or index (run "python3 -m sounddevice" to see list)
-arecord_format = dat           ; ALSA sample format (e.g. cd, dat) (legacy/unused)
+arecord_format = cd            ; ALSA sample format (e.g. cd, dat) (legacy/unused)
 silence_threshold = -66        ; dBFS threshold (e.g. -66 ~= 16/32767)
 
 [audio2]
 enabled = no                   ; set to yes to enable this channel
 capture_device = Cubilux SPDIF ; sounddevice input device name or index (run "python3 -m sounddevice" to see list)
-arecord_format = dat           ; ALSA sample format (e.g. cd, dat) (legacy/unused)
+arecord_format = cd            ; ALSA sample format (e.g. cd, dat) (legacy/unused)
 silence_threshold = -66        ; dBFS threshold (e.g. -66 ~= 16/32767)
 
 [owntone]
@@ -187,7 +187,7 @@ def parse_config(cfg: configparser.ConfigParser) -> AutostreamConfig:
     # Audio #1
     capture_device1 = cfg.get("audio1", "input_device", fallback="").strip() \
                  or cfg.get("audio1", "capture_device", fallback="default")
-    arecord_format1 = cfg.get("audio1", "arecord_format", fallback="dat")
+    arecord_format1 = cfg.get("audio1", "arecord_format", fallback="cd")
     silence_threshold1 = cfg.getfloat("audio1", "silence_threshold", fallback=-66.0)
 
     audio1 = AudioInputConfig(
@@ -200,7 +200,7 @@ def parse_config(cfg: configparser.ConfigParser) -> AutostreamConfig:
     audio2_enabled = cfg.getboolean("audio2", "enabled", fallback=False)
     capture_device2 = cfg.get("audio2", "input_device", fallback="").strip() \
                  or cfg.get("audio2", "capture_device", fallback="default")
-    arecord_format2 = cfg.get("audio2", "arecord_format", fallback="dat")
+    arecord_format2 = cfg.get("audio2", "arecord_format", fallback="cd")
     silence_threshold2 = cfg.getfloat("audio2", "silence_threshold", fallback=-66.0)
 
     audio2 = AudioInputConfig(
